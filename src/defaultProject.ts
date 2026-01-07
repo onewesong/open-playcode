@@ -4,6 +4,7 @@ export const DEFAULT_PROJECT: Project = {
   activeTab: 'html',
   autoRun: true,
   runtime: 'vanilla',
+  importMap: '',
   html: `<div class="wrap">
   <h1>playcode</h1>
   <p>编辑左侧 HTML/CSS/JS，右侧实时预览。</p>

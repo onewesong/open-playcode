@@ -11,6 +11,7 @@ export function loadProject(): Project | null {
     if (typeof parsed.html !== 'string' || typeof parsed.css !== 'string' || typeof parsed.js !== 'string') return null
     if (parsed.activeTab !== 'html' && parsed.activeTab !== 'css' && parsed.activeTab !== 'js') return null
     const runtime = parsed.runtime === 'react' ? 'react' : 'vanilla'
+    const importMap = typeof parsed.importMap === 'string' ? parsed.importMap : ''
     return {
       html: parsed.html,
       css: parsed.css,
@@ -18,6 +19,7 @@ export function loadProject(): Project | null {
       autoRun: Boolean(parsed.autoRun),
       activeTab: parsed.activeTab,
       runtime,
+      importMap,
     }
   } catch {
     return null

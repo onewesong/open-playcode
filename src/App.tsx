@@ -21,14 +21,18 @@ function App() {
   const [editorWidthPct, setEditorWidthPct] = useState(50)
   const [autoRun, setAutoRun] = useState<boolean>(() => project.autoRun)
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([])
-  const [lastRunSnapshot, setLastRunSnapshot] = useState<Pick<Project, 'html' | 'css' | 'js' | 'runtime'>>({
+  const [lastRunSnapshot, setLastRunSnapshot] = useState<Pick<Project, 'html' | 'css' | 'js' | 'runtime' | 'importMap'>>({
     html: project.html,
     css: project.css,
     js: project.js,
     runtime: project.runtime,
+    importMap: project.importMap,
   })
   const [srcDoc, setSrcDoc] = useState(() => buildSrcDoc(lastRunSnapshot))
   const draggingRef = useRef(false)
+  const [depsOpen, setDepsOpen] = useState(false)
+  const [depsDraft, setDepsDraft] = useState('')
+  const [depsError, setDepsError] = useState<string | null>(null)
 
   useEffect(() => {
     setProject((p) => (p.autoRun === autoRun ? p : { ...p, autoRun }))
@@ -43,13 +47,20 @@ function App() {
       project.html !== lastRunSnapshot.html ||
       project.css !== lastRunSnapshot.css ||
       project.js !== lastRunSnapshot.js ||
-      project.runtime !== lastRunSnapshot.runtime,
-    [project.html, project.css, project.js, project.runtime, lastRunSnapshot],
+      project.runtime !== lastRunSnapshot.runtime ||
+      project.importMap !== lastRunSnapshot.importMap,
+    [project.html, project.css, project.js, project.runtime, project.importMap, lastRunSnapshot],
   )
 
   const run = () => {
     setConsoleEntries([])
-    const snapshot = { html: project.html, css: project.css, js: project.js, runtime: project.runtime }
+    const snapshot = {
+      html: project.html,
+      css: project.css,
+      js: project.js,
+      runtime: project.runtime,
+      importMap: project.importMap,
+    }
     setLastRunSnapshot(snapshot)
     setSrcDoc(buildSrcDoc(snapshot))
   }
@@ -59,7 +70,7 @@ function App() {
     const t = window.setTimeout(() => run(), 500)
     return () => window.clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project.html, project.css, project.js, project.runtime, autoRun])
+  }, [project.html, project.css, project.js, project.runtime, project.importMap, autoRun])
 
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
@@ -123,7 +134,13 @@ function App() {
   }
 
   const share = async () => {
-    const hash = encodeProjectToHash({ html: project.html, css: project.css, js: project.js, runtime: project.runtime })
+    const hash = encodeProjectToHash({
+      html: project.html,
+      css: project.css,
+      js: project.js,
+      runtime: project.runtime,
+      importMap: project.importMap,
+    })
     const url = `${window.location.origin}${window.location.pathname}${hash}`
     try {
       await navigator.clipboard.writeText(url)
@@ -142,6 +159,7 @@ function App() {
       css: DEFAULT_PROJECT.css,
       js: DEFAULT_PROJECT.js,
       runtime: DEFAULT_PROJECT.runtime,
+      importMap: DEFAULT_PROJECT.importMap,
     })
     setSrcDoc(
       buildSrcDoc({
@@ -149,6 +167,7 @@ function App() {
         css: DEFAULT_PROJECT.css,
         js: DEFAULT_PROJECT.js,
         runtime: DEFAULT_PROJECT.runtime,
+        importMap: DEFAULT_PROJECT.importMap,
       }),
     )
     window.history.replaceState(null, '', window.location.pathname)
@@ -163,9 +182,41 @@ function App() {
       css: REACT_TEMPLATE.css,
       js: REACT_TEMPLATE.js,
       runtime: REACT_TEMPLATE.runtime,
+      importMap: REACT_TEMPLATE.importMap,
     })
-    setSrcDoc(buildSrcDoc({ html: REACT_TEMPLATE.html, css: REACT_TEMPLATE.css, js: REACT_TEMPLATE.js, runtime: 'react' }))
+    setSrcDoc(
+      buildSrcDoc({
+        html: REACT_TEMPLATE.html,
+        css: REACT_TEMPLATE.css,
+        js: REACT_TEMPLATE.js,
+        runtime: 'react',
+        importMap: REACT_TEMPLATE.importMap,
+      }),
+    )
     window.history.replaceState(null, '', window.location.pathname)
+  }
+
+  const openDeps = () => {
+    setDepsDraft(project.importMap || '')
+    setDepsError(null)
+    setDepsOpen(true)
+  }
+  const applyDeps = () => {
+    const trimmed = depsDraft.trim()
+    if (!trimmed) {
+      setProject((p) => ({ ...p, importMap: '' }))
+      setDepsOpen(false)
+      return
+    }
+    try {
+      const parsed = JSON.parse(trimmed) as unknown
+      const normalized = JSON.stringify(parsed, null, 2)
+      setProject((p) => ({ ...p, importMap: normalized }))
+      setDepsOpen(false)
+      setDepsError(null)
+    } catch (e) {
+      setDepsError(e instanceof Error ? e.message : 'JSON 解析失败')
+    }
   }
 
   const onDividerMouseDown = () => {
@@ -202,7 +253,13 @@ function App() {
             <input
               type="checkbox"
               checked={project.runtime === 'react'}
-              onChange={(e) => setProject((p) => ({ ...p, runtime: e.target.checked ? 'react' : 'vanilla', activeTab: 'js' }))}
+              onChange={(e) =>
+                setProject((p) => {
+                  const runtime = e.target.checked ? 'react' : 'vanilla'
+                  const importMap = runtime === 'react' && !p.importMap.trim() ? REACT_TEMPLATE.importMap : p.importMap
+                  return { ...p, runtime, importMap, activeTab: 'js' }
+                })
+              }
             />
             <span>React/JSX</span>
           </label>
@@ -213,6 +270,7 @@ function App() {
           <button className="primary" onClick={run} title="Ctrl/⌘ + Enter">
             运行{isDirty ? '（未同步）' : ''}
           </button>
+          <button onClick={openDeps}>依赖{project.importMap.trim() ? '（已配置）' : ''}</button>
           <button onClick={loadReactTemplate}>React 示例</button>
           <button onClick={share}>分享链接</button>
           <button onClick={() => setConsoleEntries([])}>清空控制台</button>
@@ -288,6 +346,35 @@ function App() {
           </div>
         </section>
       </main>
+
+      {depsOpen ? (
+        <div className="modalBackdrop" role="dialog" aria-modal="true">
+          <div className="modal">
+            <div className="modalHeader">
+              <div className="modalTitle">依赖（importmap）</div>
+              <button onClick={() => setDepsOpen(false)}>关闭</button>
+            </div>
+            <div className="modalBody">
+              <div className="modalHint">
+                这里填写 importmap JSON（示例：React 用 <code>https://esm.sh</code>）。代码里即可直接 <code>import ... from 'xxx'</code>。
+              </div>
+              <textarea
+                className="modalTextarea"
+                value={depsDraft}
+                onChange={(e) => setDepsDraft(e.target.value)}
+                placeholder='{"imports":{"lodash":"https://esm.sh/lodash-es"}}'
+              />
+              {depsError ? <div className="modalError">{depsError}</div> : null}
+            </div>
+            <div className="modalFooter">
+              <button onClick={() => setDepsDraft('')}>清空</button>
+              <button className="primary" onClick={applyDeps}>
+                应用
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

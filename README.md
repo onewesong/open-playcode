@@ -6,11 +6,25 @@
 
 - 三个标签页编辑 `HTML / CSS / JS`
 - React/JSX 模式：JS 支持直接写 JSX（iframe 内加载 React + Babel 转译）
+- 支持 `import` 外部包：通过 importmap 映射到 CDN（如 `https://esm.sh`）
 - 自动运行（500ms 防抖）或手动运行（`Ctrl/⌘ + Enter`）
 - 预览区：`srcDoc` 隔离执行（`sandbox="allow-scripts"`）
 - 控制台：捕获 `console.*`、运行时错误、未处理 Promise 拒绝
 - 本地保存：`localStorage`
 - 分享链接：把代码压缩写入 `#code=...`（可复制链接）
+
+## 外部依赖（import）
+
+点击顶部 `依赖`，填写 importmap JSON，例如：
+
+```json
+{
+  "imports": {
+    "lodash": "https://esm.sh/lodash-es",
+    "lucide-react": "https://esm.sh/lucide-react@latest?external=react"
+  }
+}
+```
 
 ## 开发
 

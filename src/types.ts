@@ -9,6 +9,7 @@ export type Project = {
   autoRun: boolean
   activeTab: ActiveTab
   runtime: RuntimeMode
+  importMap: string
 }
 
 export type ConsoleLevel = 'log' | 'info' | 'warn' | 'error' | 'debug'
