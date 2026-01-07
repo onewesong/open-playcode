@@ -7,6 +7,7 @@ import { javascript as jsLang } from '@codemirror/lang-javascript'
 import { oneDark } from '@codemirror/theme-one-dark'
 import type { ActiveTab, ConsoleEntry, Project } from './types'
 import { DEFAULT_PROJECT } from './defaultProject'
+import { REACT_TEMPLATE } from './reactTemplate'
 import { loadProject, saveProject } from './utils/storage'
 import { decodeProjectFromHash, encodeProjectToHash } from './utils/share'
 import { buildSrcDoc } from './preview/buildSrcDoc'
@@ -20,10 +21,11 @@ function App() {
   const [editorWidthPct, setEditorWidthPct] = useState(50)
   const [autoRun, setAutoRun] = useState<boolean>(() => project.autoRun)
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([])
-  const [lastRunSnapshot, setLastRunSnapshot] = useState<Pick<Project, 'html' | 'css' | 'js'>>({
+  const [lastRunSnapshot, setLastRunSnapshot] = useState<Pick<Project, 'html' | 'css' | 'js' | 'runtime'>>({
     html: project.html,
     css: project.css,
     js: project.js,
+    runtime: project.runtime,
   })
   const [srcDoc, setSrcDoc] = useState(() => buildSrcDoc(lastRunSnapshot))
   const draggingRef = useRef(false)
@@ -37,13 +39,17 @@ function App() {
   }, [project])
 
   const isDirty = useMemo(
-    () => project.html !== lastRunSnapshot.html || project.css !== lastRunSnapshot.css || project.js !== lastRunSnapshot.js,
-    [project.html, project.css, project.js, lastRunSnapshot],
+    () =>
+      project.html !== lastRunSnapshot.html ||
+      project.css !== lastRunSnapshot.css ||
+      project.js !== lastRunSnapshot.js ||
+      project.runtime !== lastRunSnapshot.runtime,
+    [project.html, project.css, project.js, project.runtime, lastRunSnapshot],
   )
 
   const run = () => {
     setConsoleEntries([])
-    const snapshot = { html: project.html, css: project.css, js: project.js }
+    const snapshot = { html: project.html, css: project.css, js: project.js, runtime: project.runtime }
     setLastRunSnapshot(snapshot)
     setSrcDoc(buildSrcDoc(snapshot))
   }
@@ -53,7 +59,7 @@ function App() {
     const t = window.setTimeout(() => run(), 500)
     return () => window.clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project.html, project.css, project.js, autoRun])
+  }, [project.html, project.css, project.js, project.runtime, autoRun])
 
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
@@ -104,8 +110,8 @@ function App() {
   const extensions = useMemo(() => {
     if (activeTab === 'html') return [htmlLang()]
     if (activeTab === 'css') return [cssLang()]
-    return [jsLang({ jsx: false, typescript: false })]
-  }, [activeTab])
+    return [jsLang({ jsx: project.runtime === 'react', typescript: false })]
+  }, [activeTab, project.runtime])
 
   const setActiveTab = (tab: ActiveTab) => setProject((p) => ({ ...p, activeTab: tab }))
   const setCodeForActiveTab = (value: string) => {
@@ -117,7 +123,7 @@ function App() {
   }
 
   const share = async () => {
-    const hash = encodeProjectToHash({ html: project.html, css: project.css, js: project.js })
+    const hash = encodeProjectToHash({ html: project.html, css: project.css, js: project.js, runtime: project.runtime })
     const url = `${window.location.origin}${window.location.pathname}${hash}`
     try {
       await navigator.clipboard.writeText(url)
@@ -131,8 +137,34 @@ function App() {
     setProject(DEFAULT_PROJECT)
     setAutoRun(DEFAULT_PROJECT.autoRun)
     setConsoleEntries([])
-    setLastRunSnapshot({ html: DEFAULT_PROJECT.html, css: DEFAULT_PROJECT.css, js: DEFAULT_PROJECT.js })
-    setSrcDoc(buildSrcDoc({ html: DEFAULT_PROJECT.html, css: DEFAULT_PROJECT.css, js: DEFAULT_PROJECT.js }))
+    setLastRunSnapshot({
+      html: DEFAULT_PROJECT.html,
+      css: DEFAULT_PROJECT.css,
+      js: DEFAULT_PROJECT.js,
+      runtime: DEFAULT_PROJECT.runtime,
+    })
+    setSrcDoc(
+      buildSrcDoc({
+        html: DEFAULT_PROJECT.html,
+        css: DEFAULT_PROJECT.css,
+        js: DEFAULT_PROJECT.js,
+        runtime: DEFAULT_PROJECT.runtime,
+      }),
+    )
+    window.history.replaceState(null, '', window.location.pathname)
+  }
+
+  const loadReactTemplate = () => {
+    setProject(REACT_TEMPLATE)
+    setAutoRun(REACT_TEMPLATE.autoRun)
+    setConsoleEntries([])
+    setLastRunSnapshot({
+      html: REACT_TEMPLATE.html,
+      css: REACT_TEMPLATE.css,
+      js: REACT_TEMPLATE.js,
+      runtime: REACT_TEMPLATE.runtime,
+    })
+    setSrcDoc(buildSrcDoc({ html: REACT_TEMPLATE.html, css: REACT_TEMPLATE.css, js: REACT_TEMPLATE.js, runtime: 'react' }))
     window.history.replaceState(null, '', window.location.pathname)
   }
 
@@ -167,12 +199,21 @@ function App() {
         </div>
         <div className="actions">
           <label className="toggle">
+            <input
+              type="checkbox"
+              checked={project.runtime === 'react'}
+              onChange={(e) => setProject((p) => ({ ...p, runtime: e.target.checked ? 'react' : 'vanilla', activeTab: 'js' }))}
+            />
+            <span>React/JSX</span>
+          </label>
+          <label className="toggle">
             <input type="checkbox" checked={autoRun} onChange={(e) => setAutoRun(e.target.checked)} />
             <span>自动运行</span>
           </label>
           <button className="primary" onClick={run} title="Ctrl/⌘ + Enter">
             运行{isDirty ? '（未同步）' : ''}
           </button>
+          <button onClick={loadReactTemplate}>React 示例</button>
           <button onClick={share}>分享链接</button>
           <button onClick={() => setConsoleEntries([])}>清空控制台</button>
           <button onClick={reset}>重置示例</button>
@@ -189,7 +230,7 @@ function App() {
               CSS
             </button>
             <button className={activeTab === 'js' ? 'tab active' : 'tab'} onClick={() => setActiveTab('js')}>
-              JS
+              {project.runtime === 'react' ? 'JSX' : 'JS'}
             </button>
           </div>
           <div className="editorWrap">

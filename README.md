@@ -5,6 +5,7 @@
 ## 功能
 
 - 三个标签页编辑 `HTML / CSS / JS`
+- React/JSX 模式：JS 支持直接写 JSX（iframe 内加载 React + Babel 转译）
 - 自动运行（500ms 防抖）或手动运行（`Ctrl/⌘ + Enter`）
 - 预览区：`srcDoc` 隔离执行（`sandbox="allow-scripts"`）
 - 控制台：捕获 `console.*`、运行时错误、未处理 Promise 拒绝

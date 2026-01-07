@@ -10,12 +10,14 @@ export function loadProject(): Project | null {
     if (!parsed || typeof parsed !== 'object') return null
     if (typeof parsed.html !== 'string' || typeof parsed.css !== 'string' || typeof parsed.js !== 'string') return null
     if (parsed.activeTab !== 'html' && parsed.activeTab !== 'css' && parsed.activeTab !== 'js') return null
+    const runtime = parsed.runtime === 'react' ? 'react' : 'vanilla'
     return {
       html: parsed.html,
       css: parsed.css,
       js: parsed.js,
       autoRun: Boolean(parsed.autoRun),
       activeTab: parsed.activeTab,
+      runtime,
     }
   } catch {
     return null
@@ -29,4 +31,3 @@ export function saveProject(project: Project) {
     // ignore
   }
 }
-
