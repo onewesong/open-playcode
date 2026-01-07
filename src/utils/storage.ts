@@ -12,6 +12,7 @@ export function loadProject(): Project | null {
     if (parsed.activeTab !== 'html' && parsed.activeTab !== 'css' && parsed.activeTab !== 'js') return null
     const runtime = parsed.runtime === 'react' ? 'react' : 'vanilla'
     const importMap = typeof parsed.importMap === 'string' ? parsed.importMap : ''
+    const tailwindCdn = Boolean((parsed as unknown as { tailwindCdn?: unknown }).tailwindCdn)
     return {
       html: parsed.html,
       css: parsed.css,
@@ -20,6 +21,7 @@ export function loadProject(): Project | null {
       activeTab: parsed.activeTab,
       runtime,
       importMap,
+      tailwindCdn,
     }
   } catch {
     return null

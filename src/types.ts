@@ -10,6 +10,7 @@ export type Project = {
   activeTab: ActiveTab
   runtime: RuntimeMode
   importMap: string
+  tailwindCdn: boolean
 }
 
 export type ConsoleLevel = 'log' | 'info' | 'warn' | 'error' | 'debug'

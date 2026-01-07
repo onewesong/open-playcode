@@ -14,7 +14,7 @@ import { buildSrcDoc } from './preview/buildSrcDoc'
 
 const PREVIEW_STORAGE_KEY = 'playcode.preview.storage.v1'
 
-type RunSnapshot = Pick<Project, 'html' | 'css' | 'js' | 'runtime' | 'importMap'> & { storageSeed: string }
+type RunSnapshot = Pick<Project, 'html' | 'css' | 'js' | 'runtime' | 'importMap' | 'tailwindCdn'> & { storageSeed: string }
 
 function App() {
   const [project, setProject] = useState<Project>(() => {
@@ -34,12 +34,14 @@ function App() {
     js: project.js,
     runtime: project.runtime,
     importMap: project.importMap,
+    tailwindCdn: project.tailwindCdn,
     storageSeed: JSON.stringify(previewStorageRef.current ?? {}),
   })
   const [srcDoc, setSrcDoc] = useState(() => buildSrcDoc(lastRunSnapshot))
   const draggingRef = useRef(false)
   const [depsOpen, setDepsOpen] = useState(false)
   const [depsDraft, setDepsDraft] = useState('')
+  const [depsTailwindCdn, setDepsTailwindCdn] = useState(false)
   const [depsError, setDepsError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -56,8 +58,9 @@ function App() {
       project.css !== lastRunSnapshot.css ||
       project.js !== lastRunSnapshot.js ||
       project.runtime !== lastRunSnapshot.runtime ||
-      project.importMap !== lastRunSnapshot.importMap,
-    [project.html, project.css, project.js, project.runtime, project.importMap, lastRunSnapshot],
+      project.importMap !== lastRunSnapshot.importMap ||
+      project.tailwindCdn !== lastRunSnapshot.tailwindCdn,
+    [project.html, project.css, project.js, project.runtime, project.importMap, project.tailwindCdn, lastRunSnapshot],
   )
 
   const run = () => {
@@ -68,6 +71,7 @@ function App() {
       js: project.js,
       runtime: project.runtime,
       importMap: project.importMap,
+      tailwindCdn: project.tailwindCdn,
       storageSeed: JSON.stringify(previewStorageRef.current ?? {}),
     }
     setLastRunSnapshot(snapshot)
@@ -79,7 +83,7 @@ function App() {
     const t = window.setTimeout(() => run(), 500)
     return () => window.clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project.html, project.css, project.js, project.runtime, project.importMap, autoRun])
+  }, [project.html, project.css, project.js, project.runtime, project.importMap, project.tailwindCdn, autoRun])
 
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
@@ -126,7 +130,7 @@ function App() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project.html, project.css, project.js])
+  }, [project.html, project.css, project.js, project.runtime, project.importMap, project.tailwindCdn])
 
   const activeTab = project.activeTab
   const editorValue = activeTab === 'html' ? project.html : activeTab === 'css' ? project.css : project.js
@@ -152,6 +156,7 @@ function App() {
       js: project.js,
       runtime: project.runtime,
       importMap: project.importMap,
+      tailwindCdn: project.tailwindCdn,
     })
     const url = `${window.location.origin}${window.location.pathname}${hash}`
     try {
@@ -172,6 +177,7 @@ function App() {
       js: DEFAULT_PROJECT.js,
       runtime: DEFAULT_PROJECT.runtime,
       importMap: DEFAULT_PROJECT.importMap,
+      tailwindCdn: DEFAULT_PROJECT.tailwindCdn,
       storageSeed: JSON.stringify(previewStorageRef.current ?? {}),
     })
     setSrcDoc(
@@ -181,6 +187,7 @@ function App() {
         js: DEFAULT_PROJECT.js,
         runtime: DEFAULT_PROJECT.runtime,
         importMap: DEFAULT_PROJECT.importMap,
+        tailwindCdn: DEFAULT_PROJECT.tailwindCdn,
         storageSeed: JSON.stringify(previewStorageRef.current ?? {}),
       }),
     )
@@ -197,6 +204,7 @@ function App() {
       js: REACT_TEMPLATE.js,
       runtime: REACT_TEMPLATE.runtime,
       importMap: REACT_TEMPLATE.importMap,
+      tailwindCdn: REACT_TEMPLATE.tailwindCdn,
       storageSeed: JSON.stringify(previewStorageRef.current ?? {}),
     })
     setSrcDoc(
@@ -206,6 +214,7 @@ function App() {
         js: REACT_TEMPLATE.js,
         runtime: 'react',
         importMap: REACT_TEMPLATE.importMap,
+        tailwindCdn: REACT_TEMPLATE.tailwindCdn,
         storageSeed: JSON.stringify(previewStorageRef.current ?? {}),
       }),
     )
@@ -214,20 +223,21 @@ function App() {
 
   const openDeps = () => {
     setDepsDraft(project.importMap || '')
+    setDepsTailwindCdn(Boolean(project.tailwindCdn))
     setDepsError(null)
     setDepsOpen(true)
   }
   const applyDeps = () => {
     const trimmed = depsDraft.trim()
     if (!trimmed) {
-      setProject((p) => ({ ...p, importMap: '' }))
+      setProject((p) => ({ ...p, importMap: '', tailwindCdn: depsTailwindCdn }))
       setDepsOpen(false)
       return
     }
     try {
       const parsed = JSON.parse(trimmed) as unknown
       const normalized = JSON.stringify(parsed, null, 2)
-      setProject((p) => ({ ...p, importMap: normalized }))
+      setProject((p) => ({ ...p, importMap: normalized, tailwindCdn: depsTailwindCdn }))
       setDepsOpen(false)
       setDepsError(null)
     } catch (e) {
@@ -286,7 +296,9 @@ function App() {
           <button className="primary" onClick={run} title="Ctrl/⌘ + Enter">
             运行{isDirty ? '（未同步）' : ''}
           </button>
-          <button onClick={openDeps}>依赖{project.importMap.trim() ? '（已配置）' : ''}</button>
+          <button onClick={openDeps}>
+            依赖{project.importMap.trim() || project.tailwindCdn ? '（已配置）' : ''}
+          </button>
           <button onClick={loadReactTemplate}>React 示例</button>
           <button onClick={share}>分享链接</button>
           <button onClick={() => setConsoleEntries([])}>清空控制台</button>
@@ -374,6 +386,14 @@ function App() {
               <div className="modalHint">
                 这里填写 importmap JSON（示例：React 用 <code>https://esm.sh</code>）。代码里即可直接 <code>import ... from 'xxx'</code>。
               </div>
+              <label className="modalToggle">
+                <input
+                  type="checkbox"
+                  checked={depsTailwindCdn}
+                  onChange={(e) => setDepsTailwindCdn(e.target.checked)}
+                />
+                <span>Tailwind CDN（需要联网，适合直接粘贴 Tailwind 页面）</span>
+              </label>
               <textarea
                 className="modalTextarea"
                 value={depsDraft}

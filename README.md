@@ -26,6 +26,8 @@
 }
 ```
 
+同一弹窗里也可以一键开启 `Tailwind CDN`（适合直接粘贴 Tailwind 页面，需联网）。
+
 ## React 组件为什么不显示？
 
 在 `React/JSX` 模式下：

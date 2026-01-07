@@ -4,6 +4,7 @@ export const REACT_TEMPLATE: Project = {
   activeTab: 'js',
   autoRun: true,
   runtime: 'react',
+  tailwindCdn: false,
   importMap: `{
   "imports": {
     "react": "https://esm.sh/react@18",

@@ -4,17 +4,19 @@ export function buildSrcDoc(input: {
   js: string
   runtime: 'vanilla' | 'react'
   importMap: string
+  tailwindCdn: boolean
   storageSeed: string
 }) {
-  const { html, css, js, runtime, importMap, storageSeed } = input
+  const { html, css, js, runtime, importMap, tailwindCdn, storageSeed } = input
 
   return `<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <style>${escapeStyle(css)}</style>
     ${importMapTag(importMap)}
+    ${tailwindTag(tailwindCdn)}
+    <style>${escapeStyle(css)}</style>
   </head>
   <body>
     ${html}
@@ -154,6 +156,11 @@ function importMapTag(importMap: string) {
       console.warn('importmap 不是合法 JSON，已忽略');
     </script>`
   }
+}
+
+function tailwindTag(enabled: boolean) {
+  if (!enabled) return ''
+  return `<script src="https://cdn.tailwindcss.com"></script>`
 }
 
 function indent(code: string, spaces: number) {
