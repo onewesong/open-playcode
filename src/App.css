@@ -1,0 +1,207 @@
+.app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 220px;
+}
+.brandTitle {
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.brandSub {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+button.primary {
+  background: #3b4cff;
+  border-color: #3b4cff;
+  color: white;
+}
+
+.main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.panel {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.divider {
+  width: 8px;
+  cursor: col-resize;
+  background: transparent;
+  position: relative;
+}
+.divider::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 2px;
+  background: var(--border);
+  opacity: 0.7;
+}
+
+.tabs {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+.tab {
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  font-size: 13px;
+}
+.tab.active {
+  border-color: #3b4cff;
+}
+
+.editorWrap {
+  flex: 1;
+  min-height: 0;
+}
+.editorWrap > div {
+  height: 100%;
+}
+
+.previewHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+.previewTitle {
+  font-size: 13px;
+  opacity: 0.9;
+}
+.previewHint {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.previewBody {
+  flex: 1;
+  min-height: 0;
+  background: white;
+}
+.iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: white;
+}
+
+.console {
+  height: 30%;
+  min-height: 140px;
+  max-height: 40%;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.consoleHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.consoleTitle {
+  font-size: 12px;
+  opacity: 0.85;
+}
+.consoleMeta {
+  font-size: 12px;
+  opacity: 0.6;
+}
+.consoleBody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 12px;
+}
+.consoleEmpty {
+  padding: 10px;
+  opacity: 0.6;
+}
+.consoleLine {
+  display: grid;
+  grid-template-columns: 90px 60px 1fr;
+  gap: 10px;
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.consoleTime {
+  opacity: 0.65;
+}
+.consoleLevel {
+  opacity: 0.85;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+.consoleMsg {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.level-error .consoleLevel {
+  color: #ff6b6b;
+}
+.level-warn .consoleLevel {
+  color: #ffd166;
+}
+
+body.dragging,
+body.dragging * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
