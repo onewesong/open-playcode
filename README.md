@@ -26,6 +26,13 @@
 }
 ```
 
+## React 组件为什么不显示？
+
+在 `React/JSX` 模式下：
+
+- 如果你的代码里只有 `export default App`（没有手动 `createRoot(...).render(...)`），预览会在 `#root` 为空时自动把默认导出组件渲染出来。
+- 如果你已经手动渲染了（例如自己写了 `createRoot(...).render(...)`），预览不会重复渲染。
+
 ## 开发
 
 ```bash

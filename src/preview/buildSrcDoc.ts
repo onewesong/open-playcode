@@ -4,8 +4,9 @@ export function buildSrcDoc(input: {
   js: string
   runtime: 'vanilla' | 'react'
   importMap: string
+  storageSeed: string
 }) {
-  const { html, css, js, runtime, importMap } = input
+  const { html, css, js, runtime, importMap, storageSeed } = input
 
   return `<!doctype html>
 <html lang="zh-CN">
@@ -42,6 +43,48 @@ export function buildSrcDoc(input: {
         });
       })();
     </script>
+    <script>
+      (function () {
+        var seedText = ${JSON.stringify(storageSeed || '')};
+        var seed = {};
+        try { seed = seedText ? JSON.parse(seedText) : {}; } catch (_) { seed = {}; }
+        if (!seed || typeof seed !== 'object') seed = {};
+
+        function post(type, payload) {
+          try { parent.postMessage({ __playcode: true, type: type, payload: payload }, '*'); } catch (_) {}
+        }
+
+        function createStorage(store, kind) {
+          function keys() { return Object.keys(store); }
+          function persist(action, payload) { post('storage', { kind: kind, action: action, payload: payload }); }
+          return {
+            getItem: function (k) { k = String(k); return Object.prototype.hasOwnProperty.call(store, k) ? String(store[k]) : null; },
+            setItem: function (k, v) { k = String(k); store[k] = String(v); persist('set', { key: k, value: String(v) }); },
+            removeItem: function (k) { k = String(k); delete store[k]; persist('remove', { key: k }); },
+            clear: function () { Object.keys(store).forEach(function (k) { delete store[k]; }); persist('clear', {}); },
+            key: function (i) { var ks = keys(); return typeof i === 'number' ? (ks[i] || null) : null; },
+            get length() { return keys().length; },
+          };
+        }
+
+        function defineGlobal(name, value) {
+          try {
+            Object.defineProperty(window, name, { value: value, configurable: true });
+            return;
+          } catch (_) {}
+          try { window[name] = value; } catch (_) {}
+          try {
+            if (typeof Window !== 'undefined' && Window.prototype) {
+              Object.defineProperty(Window.prototype, name, { get: function () { return value; }, configurable: true });
+            }
+          } catch (_) {}
+        }
+
+        // about:srcdoc + sandbox(无 allow-same-origin) 会导致原生 localStorage/sessionStorage 访问抛 SecurityError。
+        defineGlobal('localStorage', createStorage(seed.localStorage && typeof seed.localStorage === 'object' ? seed.localStorage : {}, 'localStorage'));
+        defineGlobal('sessionStorage', createStorage(seed.sessionStorage && typeof seed.sessionStorage === 'object' ? seed.sessionStorage : {}, 'sessionStorage'));
+      })();
+    </script>
     ${runtime === 'react' ? reactRuntime(js) : vanillaRuntime(js)}
   </body>
 </html>`
@@ -70,7 +113,21 @@ function reactRuntime(js: string) {
         var out = window.Babel.transform(code, { presets: [['react', { runtime: 'classic' }]] }).code;
         var blob = new Blob([out], { type: 'text/javascript' });
         var url = URL.createObjectURL(blob);
-        try { await import(url); } finally { URL.revokeObjectURL(url); }
+        try {
+          var mod = await import(url);
+          if (root && !root.hasChildNodes()) {
+            var ReactMod = await import('react');
+            var React = ReactMod && (ReactMod.default || ReactMod);
+            var Dom = await import('react-dom/client');
+            var Comp = (mod && (mod.default || mod.App)) || null;
+            if (Comp) {
+              var el = typeof Comp === 'function' ? React.createElement(Comp) : Comp;
+              Dom.createRoot(root).render(el);
+            }
+          }
+        } finally {
+          URL.revokeObjectURL(url);
+        }
       } catch (e) {
         console.error(e);
       }

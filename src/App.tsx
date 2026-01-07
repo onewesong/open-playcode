@@ -12,6 +12,10 @@ import { loadProject, saveProject } from './utils/storage'
 import { decodeProjectFromHash, encodeProjectToHash } from './utils/share'
 import { buildSrcDoc } from './preview/buildSrcDoc'
 
+const PREVIEW_STORAGE_KEY = 'playcode.preview.storage.v1'
+
+type RunSnapshot = Pick<Project, 'html' | 'css' | 'js' | 'runtime' | 'importMap'> & { storageSeed: string }
+
 function App() {
   const [project, setProject] = useState<Project>(() => {
     const fromHash = decodeProjectFromHash(window.location.hash)
@@ -21,12 +25,16 @@ function App() {
   const [editorWidthPct, setEditorWidthPct] = useState(50)
   const [autoRun, setAutoRun] = useState<boolean>(() => project.autoRun)
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([])
-  const [lastRunSnapshot, setLastRunSnapshot] = useState<Pick<Project, 'html' | 'css' | 'js' | 'runtime' | 'importMap'>>({
+  const previewStorageRef = useRef<{ localStorage?: Record<string, string>; sessionStorage?: Record<string, string> }>(
+    loadPreviewStorage(),
+  )
+  const [lastRunSnapshot, setLastRunSnapshot] = useState<RunSnapshot>({
     html: project.html,
     css: project.css,
     js: project.js,
     runtime: project.runtime,
     importMap: project.importMap,
+    storageSeed: JSON.stringify(previewStorageRef.current ?? {}),
   })
   const [srcDoc, setSrcDoc] = useState(() => buildSrcDoc(lastRunSnapshot))
   const draggingRef = useRef(false)
@@ -60,6 +68,7 @@ function App() {
       js: project.js,
       runtime: project.runtime,
       importMap: project.importMap,
+      storageSeed: JSON.stringify(previewStorageRef.current ?? {}),
     }
     setLastRunSnapshot(snapshot)
     setSrcDoc(buildSrcDoc(snapshot))
@@ -96,6 +105,9 @@ function App() {
           ...prev,
           { id: crypto.randomUUID(), level: 'error', ts: Date.now(), args: [maybe.type, maybe.payload] },
         ])
+      } else if (maybe.type === 'storage') {
+        const payload = maybe.payload as { kind?: string; action?: string; payload?: unknown }
+        applyPreviewStorageUpdate(previewStorageRef, payload)
       }
     }
     window.addEventListener('message', onMessage)
@@ -160,6 +172,7 @@ function App() {
       js: DEFAULT_PROJECT.js,
       runtime: DEFAULT_PROJECT.runtime,
       importMap: DEFAULT_PROJECT.importMap,
+      storageSeed: JSON.stringify(previewStorageRef.current ?? {}),
     })
     setSrcDoc(
       buildSrcDoc({
@@ -168,6 +181,7 @@ function App() {
         js: DEFAULT_PROJECT.js,
         runtime: DEFAULT_PROJECT.runtime,
         importMap: DEFAULT_PROJECT.importMap,
+        storageSeed: JSON.stringify(previewStorageRef.current ?? {}),
       }),
     )
     window.history.replaceState(null, '', window.location.pathname)
@@ -183,6 +197,7 @@ function App() {
       js: REACT_TEMPLATE.js,
       runtime: REACT_TEMPLATE.runtime,
       importMap: REACT_TEMPLATE.importMap,
+      storageSeed: JSON.stringify(previewStorageRef.current ?? {}),
     })
     setSrcDoc(
       buildSrcDoc({
@@ -191,6 +206,7 @@ function App() {
         js: REACT_TEMPLATE.js,
         runtime: 'react',
         importMap: REACT_TEMPLATE.importMap,
+        storageSeed: JSON.stringify(previewStorageRef.current ?? {}),
       }),
     )
     window.history.replaceState(null, '', window.location.pathname)
@@ -377,6 +393,65 @@ function App() {
       ) : null}
     </div>
   )
+}
+
+function loadPreviewStorage(): { localStorage?: Record<string, string>; sessionStorage?: Record<string, string> } {
+  try {
+    const raw = localStorage.getItem(PREVIEW_STORAGE_KEY)
+    if (!raw) return { localStorage: {}, sessionStorage: {} }
+    const parsed = JSON.parse(raw) as unknown
+    if (!parsed || typeof parsed !== 'object') return { localStorage: {}, sessionStorage: {} }
+    const p = parsed as { localStorage?: unknown; sessionStorage?: unknown }
+    return {
+      localStorage: isRecord(p.localStorage) ? (p.localStorage as Record<string, string>) : {},
+      sessionStorage: isRecord(p.sessionStorage) ? (p.sessionStorage as Record<string, string>) : {},
+    }
+  } catch {
+    return { localStorage: {}, sessionStorage: {} }
+  }
+}
+
+function persistPreviewStorage(storage: { localStorage?: Record<string, string>; sessionStorage?: Record<string, string> }) {
+  try {
+    localStorage.setItem(PREVIEW_STORAGE_KEY, JSON.stringify(storage))
+  } catch {
+    // ignore
+  }
+}
+
+function applyPreviewStorageUpdate(
+  ref: React.MutableRefObject<{ localStorage?: Record<string, string>; sessionStorage?: Record<string, string> }>,
+  msg: { kind?: string; action?: string; payload?: unknown },
+) {
+  const kind = msg.kind === 'sessionStorage' ? 'sessionStorage' : msg.kind === 'localStorage' ? 'localStorage' : null
+  if (!kind) return
+  const action = msg.action
+  if (action !== 'set' && action !== 'remove' && action !== 'clear') return
+
+  const state = ref.current ?? { localStorage: {}, sessionStorage: {} }
+  const store =
+    kind === 'localStorage'
+      ? (state.localStorage ?? (state.localStorage = {}))
+      : (state.sessionStorage ?? (state.sessionStorage = {}))
+
+  if (action === 'set') {
+    const payload = msg.payload as { key?: unknown; value?: unknown }
+    if (typeof payload?.key !== 'string') return
+    store[payload.key] = typeof payload.value === 'string' ? payload.value : String(payload.value)
+  } else if (action === 'remove') {
+    const payload = msg.payload as { key?: unknown }
+    if (typeof payload?.key !== 'string') return
+    delete store[payload.key]
+  } else if (action === 'clear') {
+    for (const k of Object.keys(store)) delete store[k]
+  }
+
+  ref.current = state
+  persistPreviewStorage(state)
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return Boolean(v) && typeof v === 'object' && !Array.isArray(v)
 }
 
 function formatArgs(args: unknown[]) {
